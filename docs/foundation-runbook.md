@@ -1,7 +1,11 @@
 # GCP foundation runbook
 
-The foundation is prepared but not deployed. Run each plan separately and review
-it before applying anything.
+Architecture: [GCP architecture](architecture/gcp.md).  
+Troubleshooting: [Phase 0 GCP foundation](troubleshooting/00-gcp-foundation.md).
+
+The bootstrap foundation was deployed from a reviewed plan. This runbook remains the
+rebuild and operational procedure. Run each plan separately and review it before
+applying anything.
 
 ## Prerequisites
 
@@ -65,4 +69,3 @@ budget until billing reports show no unintended resources.
 The bucket deliberately has `force_destroy = false`. Terraform cannot delete it
 while state objects or historical versions exist. State deletion is a separate
 manual recovery-impact procedure and is not part of routine cleanup.
-

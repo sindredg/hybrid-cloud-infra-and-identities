@@ -4,6 +4,10 @@ This document records facts found in the local copy of the existing Azure
 repository. The implementation and its detailed evidence remain in the
 [two-site hybrid identity repository](https://github.com/sindredg/two-site-hybrid-identity-).
 
+See the [end-to-end hybrid architecture](architecture/hybrid.md) for how these
+Azure and Microsoft Entra components relate to the GCP foundation and proposed
+cross-cloud controls.
+
 ## Evidence summary
 
 | Area | Repository evidence | Cross-cloud constraint |
@@ -47,4 +51,3 @@ evidence.
 
 The GCP reservation is `10.30.0.0/16`, beginning with `10.30.1.0/24`. It does not
 overlap either recorded Azure VNet.
-

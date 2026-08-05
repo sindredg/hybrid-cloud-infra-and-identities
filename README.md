@@ -33,7 +33,7 @@ foundation. It does not duplicate the Azure implementation.
 | Azure-hosted AD DS and DNS | Deployed, documented in the Azure repository | HQ is in Sweden Central. |
 | Entra Connect and hybrid identity | Deployed, documented in the Azure repository | Entra ID is the central identity system. |
 | Azure branch site | Deployed, documented in the Azure repository | Denmark East is connected to HQ by Azure VNet peering. |
-| GCP cost, state and automation foundation | Terraform prepared, not deployed | This is the first approval gate. |
+| GCP cost, state and automation foundation | Deployed | Budget, protected state bucket, Terraform service account and GitHub OIDC trust were created from a reviewed plan. |
 | GCP custom VPC and initial subnet | Terraform prepared, not deployed | `10.30.0.0/16`, starting with `10.30.1.0/24`. |
 | Entra Workforce Identity Federation | Proposed | Human sign-in to GCP. |
 | Azure-to-GCP HA VPN | Proposed | No VPN resources are in the baseline. |
@@ -62,7 +62,7 @@ flowchart LR
         Workforce["Workforce Identity Federation<br/>planned"]
         WIF["Workload Identity Federation<br/>GitHub OIDC, baseline"]
         TFSA["Terraform service account<br/>baseline"]
-        VPC["Custom VPC 10.30.0.0/16<br/>baseline"]
+        VPC["Custom VPC 10.30.0.0/16<br/>prepared, not deployed"]
         Workloads["GCP workloads and service accounts<br/>planned"]
     end
 
@@ -94,13 +94,16 @@ Human access and automation use separate trust paths:
 
 ## First foundation milestone
 
-The prepared Terraform creates only:
+The deployed bootstrap foundation contains:
 
 1. A NOK 1,000 monthly budget with 50%, 75% and 90% actual-spend alerts.
 2. A protected, versioned GCS Terraform-state bucket.
 3. A least-privilege Terraform service account and repository-restricted GitHub
    OIDC trust.
-4. A custom-mode VPC and one `europe-north1` subnet.
+
+The custom-mode VPC and `europe-north1` subnet are implemented as reviewed
+Terraform but have not been applied. They are the next infrastructure phase, not a
+deployed foundation resource.
 
 It does not create compute, Cloud NAT, HA VPN, GKE, load balancers, managed
 firewalls or other paid always-on workload services. Budget alerts notify; they do
@@ -115,7 +118,13 @@ terraform/modules/            Focused reusable GCP modules
 terraform/environments/dev/   Thin development network root
 ```
 
-Start with [the foundation runbook](docs/foundation-runbook.md). The Azure evidence
+Read the [foundation deployment record](docs/00-gcp-foundation.md) and
+[foundation runbook](docs/foundation-runbook.md). Detailed
+[GCP](docs/architecture/gcp.md) and
+[end-to-end hybrid](docs/architecture/hybrid.md) architecture views explain the
+security and control-plane boundaries. The
+[troubleshooting log](docs/troubleshooting/README.md) records encountered issues
+and safe first responses for future failures. The Azure evidence
 and constraints are recorded in
 [existing-azure-environment.md](docs/existing-azure-environment.md). Major choices
 are tracked in [ADRs](docs/adr/README.md).
@@ -133,8 +142,8 @@ Deleting versioned state requires a separate, explicit recovery-impact decision.
 
 ## Limitations and validation status
 
-The code has not been applied to GCP. Repository checks can validate formatting,
-configuration and address policy, but they cannot prove live Azure health, Entra
-configuration, billing delivery or cloud connectivity. Those claims require
-authenticated validation and recorded evidence.
-
+The bootstrap foundation has been applied to GCP. The custom VPC and subnet have not
+been deployed. Repository checks validate formatting, configuration and address
+policy, but they cannot prove live Azure health, Entra configuration, budget email
+delivery or cloud connectivity. Those claims require authenticated validation and
+recorded evidence.

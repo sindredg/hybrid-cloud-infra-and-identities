@@ -22,11 +22,6 @@ resource "google_billing_budget" "this" {
     }
   }
 
-  all_updates_rule {
-    monitoring_notification_channels = var.monitoring_notification_channels
-    disable_default_iam_recipients   = false
-  }
-
   ownership_scope = "BILLING_ACCOUNT"
   deletion_policy = "DELETE"
 }

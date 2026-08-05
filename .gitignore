@@ -23,6 +23,9 @@ gha-creds-*.json
 /terraform/bootstrap/gcp-foundation/backend.tf
 /terraform/environments/*/backend.hcl
 
-# Private learning notes and deployment journal. This may contain project IDs,
+# Private phase guides and evidence review. These may contain project IDs,
 # billing details, plan observations and screenshots that are not for publishing.
 /LOCAL-GCP-GUIDE.md
+/private-docs/
+/docs/images/_redact-before-use/
+/docs/images/_unused/
