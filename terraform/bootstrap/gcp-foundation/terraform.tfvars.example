@@ -1,0 +1,14 @@
+project_id         = "replace-with-project-id"
+project_number     = "123456789012"
+billing_account_id = "000000-000000-000000"
+state_bucket_name  = "replace-with-globally-unique-state-bucket"
+
+github_repository  = "sindredg/replace-with-hybrid-infra-repository"
+github_environment = "gcp-dev"
+
+budget_currency_code = "NOK"
+monthly_budget_units = 1000
+
+# Existing Cloud Monitoring notification channels, if used.
+monitoring_notification_channels = []
+
