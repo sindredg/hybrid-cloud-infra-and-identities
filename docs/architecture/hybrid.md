@@ -12,13 +12,16 @@ The facts used here are summarized in
 [existing-azure-environment.md](../existing-azure-environment.md). Live health and
 configuration should be revalidated before implementing cross-cloud connectivity.
 
+The diagram below shows the complete logical architecture. Implementation status is
+maintained in the repository README and the GCP component-status table.
+
 ```mermaid
 flowchart TB
     People["Employees and administrators"]
     GitHub["GitHub Actions"]
-    Entra["Microsoft Entra ID<br/>central human identity<br/>deployed"]
+    Entra["Microsoft Entra ID<br/>central human identity"]
 
-    subgraph Azure["Azure-hosted enterprise-style AD environment - deployed"]
+    subgraph Azure["Azure-hosted enterprise-style AD environment"]
         direction TB
         Admin["Administrator browser"]
 
@@ -51,21 +54,21 @@ flowchart TB
 
     subgraph Google["Google Cloud"]
         direction TB
-        subgraph GCPFoundation["Foundation - deployed"]
+        subgraph GCPFoundation["GCP foundation"]
             GitHubWIF["GitHub Workload Identity Federation"]
             TFSA["Terraform service account"]
             State["Protected state, APIs and budget"]
             GitHubWIF --> TFSA --> State
         end
 
-        subgraph GCPNetwork["Development network - prepared"]
+        subgraph GCPNetwork["GCP development network"]
             GCPVPC["Custom VPC - 10.30.0.0/16"]
             GCPSubnet["europe-north1 - 10.30.1.0/24"]
             GCPVPC --> GCPSubnet
         end
 
-        Workforce["Entra Workforce Identity Federation<br/>proposed"]
-        GCPWorkloads["GCP workloads and service accounts<br/>proposed"]
+        Workforce["Entra Workforce Identity Federation"]
+        GCPWorkloads["GCP workloads and service accounts"]
     end
 
     People --> Entra
@@ -73,18 +76,12 @@ flowchart TB
     CL01 -->|"hybrid join"| Entra
     CL02 -->|"hybrid join and LAPS backup"| Entra
     GitHub -->|"repository and environment OIDC claims"| GitHubWIF
-    Entra -. "future human federation" .-> Workforce
-    TFSA -. "future network apply" .-> GCPVPC
-    HQVNet -. "HA VPN, routes and DNS - proposed" .-> GCPVPC
-    Workforce -. "GCP IAM authorization" .-> GCPWorkloads
-    GCPSubnet -.-> GCPWorkloads
+    Entra -->|"human federation"| Workforce
+    TFSA -->|"network administration"| GCPVPC
+    HQVNet <-->|"HA VPN, routes and DNS"| GCPVPC
+    Workforce -->|"GCP IAM authorization"| GCPWorkloads
+    GCPSubnet --> GCPWorkloads
 
-    classDef deployed fill:#e8f5e9,stroke:#2e7d32,color:#1b1b1b,stroke-width:2px;
-    classDef prepared fill:#e3f2fd,stroke:#1565c0,color:#1b1b1b,stroke-width:2px;
-    classDef proposed fill:#f5f5f5,stroke:#616161,color:#1b1b1b,stroke-width:2px,stroke-dasharray:5 5;
-    class Entra,Bastion,DC01,CS01,CL01,CL02,GitHubWIF,TFSA,State deployed;
-    class GCPVPC,GCPSubnet prepared;
-    class Workforce,GCPWorkloads proposed;
 ```
 
 ## Identity planes

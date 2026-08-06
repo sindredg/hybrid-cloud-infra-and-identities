@@ -1,4 +1,10 @@
-# Multi-Cloud Hybrid Identity and Infrastructure
+# Azure and GCP: Cross-Cloud Integration
+
+> Multi-cloud infrastructure, federated identity, keyless automation and controlled
+> connectivity, implemented with reusable Terraform.
+
+**Status: In progress.** The GCP foundation is deployed. Networking, human identity
+federation and cross-cloud connectivity are being implemented in phases.
 
 This repository extends an existing Azure-hosted Active Directory and Microsoft
 Entra ID environment into Google Cloud. It treats identity, network connectivity,
@@ -41,13 +47,16 @@ foundation. It does not duplicate the Azure implementation.
 
 ## Architecture overview
 
+The diagram shows the complete logical architecture. The status table above records
+which parts have been implemented at the current project phase.
+
 ```mermaid
 flowchart TB
     People["Employees and administrators"]
     GitHub["GitHub Actions"]
-    Entra["Microsoft Entra ID<br/>central human identity<br/>deployed"]
+    Entra["Microsoft Entra ID<br/>central human identity"]
 
-    subgraph Azure["Azure-hosted identity environment - deployed"]
+    subgraph Azure["Azure-hosted identity environment"]
         direction TB
         subgraph HQ["HQ - Sweden Central<br/>10.10.0.0/16"]
             DC01["DC01<br/>AD DS and DNS<br/>10.10.1.4"]
@@ -62,34 +71,28 @@ flowchart TB
 
     subgraph GCP["Google Cloud"]
         direction TB
-        subgraph Foundation["Foundation - deployed"]
+        subgraph Foundation["GCP foundation"]
             WIF["GitHub Workload Identity Federation"]
             TFSA["Terraform service account"]
             State["Protected GCS state and budget"]
         end
-        subgraph Network["Development network - prepared"]
+        subgraph Network["GCP development network"]
             VPC["Custom VPC<br/>10.30.0.0/16"]
             Subnet["europe-north1 subnet<br/>10.30.1.0/24"]
             VPC --> Subnet
         end
-        Workforce["Entra Workforce Identity Federation<br/>proposed"]
-        Workloads["GCP workloads and service accounts<br/>proposed"]
+        Workforce["Entra Workforce Identity Federation"]
+        Workloads["GCP workloads and service accounts"]
     end
 
     People --> Entra
     CS01 -->|"password hash and directory sync"| Entra
     GitHub --> WIF -->|"short-lived credentials"| TFSA --> State
-    TFSA -. "future network apply" .-> VPC
-    Entra -. "future human federation" .-> Workforce
-    HQ -. "HA VPN, routes and DNS - proposed" .-> VPC
-    Subnet -.-> Workloads
+    TFSA -->|"network administration"| VPC
+    Entra -->|"human federation"| Workforce
+    HQ <-->|"HA VPN, routes and DNS"| VPC
+    Subnet --> Workloads
 
-    classDef deployed fill:#e8f5e9,stroke:#2e7d32,color:#1b1b1b,stroke-width:2px;
-    classDef prepared fill:#e3f2fd,stroke:#1565c0,color:#1b1b1b,stroke-width:2px;
-    classDef proposed fill:#f5f5f5,stroke:#616161,color:#1b1b1b,stroke-width:2px,stroke-dasharray:5 5;
-    class Entra,DC01,CS01,Clients,WIF,TFSA,State deployed;
-    class VPC,Subnet prepared;
-    class Workforce,Workloads proposed;
 ```
 
 Azure VNet peering connects the two Azure sites. It is not the proposed

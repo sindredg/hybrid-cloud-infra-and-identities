@@ -28,34 +28,37 @@ always-on network services.
 
 ## GCP foundation flow
 
+This diagram represents the complete logical GCP design. The component-status table
+above remains the source of truth for implementation progress.
+
 ```mermaid
 flowchart TB
     Developer["Developer"]
     GitHub["GitHub repository<br/>gcp-dev environment"]
-    Entra["Microsoft Entra ID<br/>future human identity source"]
+    Entra["Microsoft Entra ID<br/>human identity source"]
 
     subgraph Project["GCP project"]
         direction TB
 
-        subgraph Automation["Automation trust - deployed"]
+        subgraph Automation["Automation trust"]
             Provider["GitHub Workload Identity provider"]
             TFSA["Terraform service account<br/>no user-managed key"]
             Provider -->|"short-lived impersonation"| TFSA
         end
 
-        subgraph Controls["Foundation controls - deployed"]
+        subgraph Controls["Foundation controls"]
             APIs["Required service APIs"]
             Bucket["Versioned GCS state bucket<br/>public access prevented"]
             Budget["NOK 1,000 monthly budget<br/>50%, 75% and 90% alerts"]
         end
 
-        subgraph Network["Development network - prepared, not deployed"]
+        subgraph Network["Development network"]
             VPC["Custom-mode VPC<br/>10.30.0.0/16"]
             Subnet["europe-north1 subnet<br/>10.30.1.0/24<br/>Private Google Access"]
             VPC --> Subnet
         end
 
-        subgraph Future["Later phases - proposed"]
+        subgraph Services["Identity, connectivity and workloads"]
             HumanWIF["Entra Workforce Identity Federation"]
             Connectivity["HA VPN, routing and DNS"]
             Workloads["Workloads and service accounts"]
@@ -65,20 +68,14 @@ flowchart TB
     Developer -->|"review and approval"| GitHub
     GitHub -->|"OIDC claims<br/>repository plus environment"| Provider
     TFSA -->|"state objects"| Bucket
-    TFSA -. "network administration when applied" .-> VPC
-    APIs --> Automation
+    TFSA -->|"network administration"| VPC
+    APIs --> Provider
     APIs --> Bucket
-    Budget -. "alerts only<br/>not a spending cap" .-> Controls
-    Entra -. "future human authentication" .-> HumanWIF
-    Subnet -.-> Connectivity
-    Connectivity -.-> Workloads
+    Entra -->|"human authentication"| HumanWIF
+    Connectivity --> VPC
+    Subnet --> Workloads
+    HumanWIF -->|"GCP IAM authorization"| Workloads
 
-    classDef deployed fill:#e8f5e9,stroke:#2e7d32,color:#1b1b1b,stroke-width:2px;
-    classDef prepared fill:#e3f2fd,stroke:#1565c0,color:#1b1b1b,stroke-width:2px;
-    classDef proposed fill:#f5f5f5,stroke:#616161,color:#1b1b1b,stroke-width:2px,stroke-dasharray:5 5;
-    class Provider,TFSA,APIs,Bucket,Budget deployed;
-    class VPC,Subnet prepared;
-    class Entra,HumanWIF,Connectivity,Workloads proposed;
 ```
 
 ## Trust boundaries
@@ -120,7 +117,7 @@ against the state bucket.
 
 ```mermaid
 flowchart TB
-    subgraph BootstrapLayer["Bootstrap layer - deployed"]
+    subgraph BootstrapLayer["Bootstrap layer"]
         direction TB
         Bootstrap["bootstrap/gcp-foundation root"]
         Identity["gcp-terraform-identity module"]
@@ -131,19 +128,15 @@ flowchart TB
         Bootstrap --> State
     end
 
-    subgraph EnvironmentLayer["Environment layer - prepared"]
+    subgraph EnvironmentLayer["Environment layer"]
         direction TB
         Dev["environments/dev root"]
         Network["gcp-network module"]
         Dev --> Network
     end
 
-    State -. "backend for the environment root<br/>when deliberately initialized" .-> Dev
+    State -->|"remote backend"| Dev
 
-    classDef deployed fill:#e8f5e9,stroke:#2e7d32,color:#1b1b1b,stroke-width:2px;
-    classDef prepared fill:#e3f2fd,stroke:#1565c0,color:#1b1b1b,stroke-width:2px;
-    class Bootstrap,Identity,Cost,State deployed;
-    class Dev,Network prepared;
 ```
 
 ## Network design
