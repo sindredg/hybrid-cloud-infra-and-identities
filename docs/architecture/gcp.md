@@ -29,32 +29,56 @@ always-on network services.
 ## GCP foundation flow
 
 ```mermaid
-flowchart LR
+flowchart TB
     Developer["Developer"]
-    GitHub["GitHub repository<br/>and gcp-dev environment"]
-    OIDC["GitHub OIDC token"]
+    GitHub["GitHub repository<br/>gcp-dev environment"]
+    Entra["Microsoft Entra ID<br/>future human identity source"]
 
     subgraph Project["GCP project"]
-        Provider["Workload Identity provider<br/>Deployed"]
-        TFSA["Terraform service account<br/>Deployed"]
-        APIs["Required APIs<br/>Deployed"]
-        Bucket["Versioned GCS state bucket<br/>Deployed"]
-        Budget["NOK 1,000 budget<br/>Deployed"]
-        VPC["Custom VPC 10.30.0.0/16<br/>Prepared, not deployed"]
-        Subnet["europe-north1 subnet<br/>10.30.1.0/24<br/>Prepared, not deployed"]
-        HumanWIF["Entra Workforce Identity<br/>Proposed"]
-        Workloads["GCP workloads and service accounts<br/>Proposed"]
+        direction TB
+
+        subgraph Automation["Automation trust - deployed"]
+            Provider["GitHub Workload Identity provider"]
+            TFSA["Terraform service account<br/>no user-managed key"]
+            Provider -->|"short-lived impersonation"| TFSA
+        end
+
+        subgraph Controls["Foundation controls - deployed"]
+            APIs["Required service APIs"]
+            Bucket["Versioned GCS state bucket<br/>public access prevented"]
+            Budget["NOK 1,000 monthly budget<br/>50%, 75% and 90% alerts"]
+        end
+
+        subgraph Network["Development network - prepared, not deployed"]
+            VPC["Custom-mode VPC<br/>10.30.0.0/16"]
+            Subnet["europe-north1 subnet<br/>10.30.1.0/24<br/>Private Google Access"]
+            VPC --> Subnet
+        end
+
+        subgraph Future["Later phases - proposed"]
+            HumanWIF["Entra Workforce Identity Federation"]
+            Connectivity["HA VPN, routing and DNS"]
+            Workloads["Workloads and service accounts"]
+        end
     end
 
     Developer -->|"review and approval"| GitHub
-    GitHub --> OIDC --> Provider -->|"short-lived impersonation"| TFSA
-    TFSA -->|"state objects only"| Bucket
+    GitHub -->|"OIDC claims<br/>repository plus environment"| Provider
+    TFSA -->|"state objects"| Bucket
     TFSA -. "network administration when applied" .-> VPC
+    APIs --> Automation
     APIs --> Bucket
-    APIs --> Provider
-    Budget -. "alerts; not a spending cap" .-> Project
-    VPC --> Subnet --> Workloads
-    HumanWIF -. "human access" .-> Project
+    Budget -. "alerts only<br/>not a spending cap" .-> Controls
+    Entra -. "future human authentication" .-> HumanWIF
+    Subnet -.-> Connectivity
+    Connectivity -.-> Workloads
+
+    classDef deployed fill:#e8f5e9,stroke:#2e7d32,color:#1b1b1b,stroke-width:2px;
+    classDef prepared fill:#e3f2fd,stroke:#1565c0,color:#1b1b1b,stroke-width:2px;
+    classDef proposed fill:#f5f5f5,stroke:#616161,color:#1b1b1b,stroke-width:2px,stroke-dasharray:5 5;
+    class Provider,TFSA,APIs,Bucket,Budget deployed;
+    class VPC,Subnet prepared;
+    class Entra,HumanWIF,Connectivity,Workloads proposed;
 ```
 
 ## Trust boundaries
@@ -95,19 +119,31 @@ configuration remains local and ignored until the root is deliberately initializ
 against the state bucket.
 
 ```mermaid
-flowchart TD
-    Bootstrap["bootstrap/gcp-foundation root"]
-    State["GCS backend<br/>bootstrap/gcp-foundation"]
-    Identity["Terraform identity module"]
-    Cost["Cost governance module"]
-    Dev["environments/dev root<br/>Prepared"]
-    Network["GCP network module<br/>Prepared"]
+flowchart TB
+    subgraph BootstrapLayer["Bootstrap layer - deployed"]
+        direction TB
+        Bootstrap["bootstrap/gcp-foundation root"]
+        Identity["gcp-terraform-identity module"]
+        Cost["gcp-cost-governance module"]
+        State["GCS backend<br/>bootstrap/gcp-foundation"]
+        Bootstrap --> Identity
+        Bootstrap --> Cost
+        Bootstrap --> State
+    end
 
-    Bootstrap --> State
-    Bootstrap --> Identity
-    Bootstrap --> Cost
-    Dev --> Network
-    Dev -. "uses foundation backend and identity when initialized" .-> State
+    subgraph EnvironmentLayer["Environment layer - prepared"]
+        direction TB
+        Dev["environments/dev root"]
+        Network["gcp-network module"]
+        Dev --> Network
+    end
+
+    State -. "backend for the environment root<br/>when deliberately initialized" .-> Dev
+
+    classDef deployed fill:#e8f5e9,stroke:#2e7d32,color:#1b1b1b,stroke-width:2px;
+    classDef prepared fill:#e3f2fd,stroke:#1565c0,color:#1b1b1b,stroke-width:2px;
+    class Bootstrap,Identity,Cost,State deployed;
+    class Dev,Network prepared;
 ```
 
 ## Network design

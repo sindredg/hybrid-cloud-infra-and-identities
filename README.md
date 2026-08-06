@@ -42,37 +42,54 @@ foundation. It does not duplicate the Azure implementation.
 ## Architecture overview
 
 ```mermaid
-flowchart LR
+flowchart TB
     People["Employees and administrators"]
     GitHub["GitHub Actions"]
+    Entra["Microsoft Entra ID<br/>central human identity<br/>deployed"]
 
-    subgraph Azure["Azure, deployed"]
-        AD["AD DS and DNS<br/>10.10.1.4"]
-        Connect["Entra Connect Sync"]
-        AzureWorkloads["Azure workloads<br/>managed identities planned"]
-        HQ["HQ VNet<br/>10.10.0.0/16"]
-        Branch["Branch VNet<br/>10.20.0.0/16"]
-        HQ <--> Branch
-        AD --> Connect
+    subgraph Azure["Azure-hosted identity environment - deployed"]
+        direction TB
+        subgraph HQ["HQ - Sweden Central<br/>10.10.0.0/16"]
+            DC01["DC01<br/>AD DS and DNS<br/>10.10.1.4"]
+            CS01["CS01<br/>Entra Connect Sync<br/>10.10.1.5"]
+        end
+        subgraph Branch["Branch - Denmark East<br/>10.20.0.0/16"]
+            Clients["CL01 and CL02<br/>domain and hybrid joined"]
+        end
+        DC01 -->|"AD identity, DNS and policy"| Clients
+        HQ <-->|"global VNet peering"| Branch
     end
-
-    Entra["Microsoft Entra ID<br/>central human identity"]
 
     subgraph GCP["Google Cloud"]
-        Workforce["Workforce Identity Federation<br/>planned"]
-        WIF["Workload Identity Federation<br/>GitHub OIDC, baseline"]
-        TFSA["Terraform service account<br/>baseline"]
-        VPC["Custom VPC 10.30.0.0/16<br/>prepared, not deployed"]
-        Workloads["GCP workloads and service accounts<br/>planned"]
+        direction TB
+        subgraph Foundation["Foundation - deployed"]
+            WIF["GitHub Workload Identity Federation"]
+            TFSA["Terraform service account"]
+            State["Protected GCS state and budget"]
+        end
+        subgraph Network["Development network - prepared"]
+            VPC["Custom VPC<br/>10.30.0.0/16"]
+            Subnet["europe-north1 subnet<br/>10.30.1.0/24"]
+            VPC --> Subnet
+        end
+        Workforce["Entra Workforce Identity Federation<br/>proposed"]
+        Workloads["GCP workloads and service accounts<br/>proposed"]
     end
 
-    Connect --> Entra
-    People --> Entra --> Workforce
-    Workforce --> GCP
-    GitHub --> WIF --> TFSA --> VPC
-    AzureWorkloads -. "future workload federation" .-> GCP
-    HQ -. "HA VPN and routed DNS, planned" .-> VPC
-    VPC --> Workloads
+    People --> Entra
+    CS01 -->|"password hash and directory sync"| Entra
+    GitHub --> WIF -->|"short-lived credentials"| TFSA --> State
+    TFSA -. "future network apply" .-> VPC
+    Entra -. "future human federation" .-> Workforce
+    HQ -. "HA VPN, routes and DNS - proposed" .-> VPC
+    Subnet -.-> Workloads
+
+    classDef deployed fill:#e8f5e9,stroke:#2e7d32,color:#1b1b1b,stroke-width:2px;
+    classDef prepared fill:#e3f2fd,stroke:#1565c0,color:#1b1b1b,stroke-width:2px;
+    classDef proposed fill:#f5f5f5,stroke:#616161,color:#1b1b1b,stroke-width:2px,stroke-dasharray:5 5;
+    class Entra,DC01,CS01,Clients,WIF,TFSA,State deployed;
+    class VPC,Subnet prepared;
+    class Workforce,Workloads proposed;
 ```
 
 Azure VNet peering connects the two Azure sites. It is not the proposed

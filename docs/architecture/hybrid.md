@@ -13,45 +13,78 @@ The facts used here are summarized in
 configuration should be revalidated before implementing cross-cloud connectivity.
 
 ```mermaid
-flowchart LR
+flowchart TB
     People["Employees and administrators"]
     GitHub["GitHub Actions"]
+    Entra["Microsoft Entra ID<br/>central human identity<br/>deployed"]
 
-    subgraph Microsoft["Microsoft identity plane"]
-        Entra["Microsoft Entra ID<br/>Central human identity<br/>Deployed"]
-    end
+    subgraph Azure["Azure-hosted enterprise-style AD environment - deployed"]
+        direction TB
+        Admin["Administrator browser"]
 
-    subgraph Azure["Azure-hosted enterprise-style AD environment"]
-        subgraph HQ["HQ - Sweden Central<br/>10.10.0.0/16"]
-            DC01["DC01<br/>AD DS and DNS<br/>10.10.1.4"]
-            CS01["CS01<br/>Entra Connect Sync<br/>10.10.1.5"]
-            Bastion["Azure Bastion Basic<br/>No VM public IPs"]
+        subgraph HQ["HQ - Sweden Central"]
+            direction TB
+            Bastion["Azure Bastion Basic<br/>private administration"]
+            subgraph HQVNet["HQ VNet - 10.10.0.0/16"]
+                DC01["DC01 - 10.10.1.4<br/>AD DS, DNS and Group Policy"]
+                CS01["CS01 - 10.10.1.5<br/>Entra Connect Sync"]
+            end
         end
-        subgraph Branch["Branch - Denmark East<br/>10.20.0.0/16"]
-            Clients["CL01 and CL02<br/>Domain and hybrid joined"]
+
+        subgraph Branch["Branch - Denmark East"]
+            direction TB
+            subgraph BranchVNet["Branch VNet - 10.20.0.0/16"]
+                CL01["CL01 - 10.20.1.4<br/>hardened, LAPS to AD"]
+                CL02["CL02 - 10.20.1.5<br/>control, LAPS to Entra ID"]
+            end
         end
-        HQ <-->|"Global VNet peering<br/>Deployed"| Branch
-        DC01 --> CS01
+
+        Admin -->|"HTTPS"| Bastion
+        Bastion -->|"private RDP"| DC01
+        Bastion -->|"private RDP"| CS01
+        Bastion -->|"RDP over peering"| CL01
+        Bastion -->|"RDP over peering"| CL02
+        HQVNet <-->|"global VNet peering"| BranchVNet
+        DC01 -->|"DNS, Kerberos and policy"| CL01
+        DC01 -->|"DNS, Kerberos and policy"| CL02
     end
 
     subgraph Google["Google Cloud"]
-        Workforce["Workforce Identity Federation<br/>Proposed"]
-        GitHubWIF["GitHub Workload Identity Federation<br/>Deployed"]
-        TFSA["Terraform service account<br/>Deployed"]
-        Foundation["State, APIs and budget<br/>Deployed"]
-        GCPNet["VPC 10.30.0.0/16<br/>Prepared, not deployed"]
-        GCPWorkloads["Workloads and service accounts<br/>Proposed"]
+        direction TB
+        subgraph GCPFoundation["Foundation - deployed"]
+            GitHubWIF["GitHub Workload Identity Federation"]
+            TFSA["Terraform service account"]
+            State["Protected state, APIs and budget"]
+            GitHubWIF --> TFSA --> State
+        end
+
+        subgraph GCPNetwork["Development network - prepared"]
+            GCPVPC["Custom VPC - 10.30.0.0/16"]
+            GCPSubnet["europe-north1 - 10.30.1.0/24"]
+            GCPVPC --> GCPSubnet
+        end
+
+        Workforce["Entra Workforce Identity Federation<br/>proposed"]
+        GCPWorkloads["GCP workloads and service accounts<br/>proposed"]
     end
 
-    DC01 -->|"AD identities and policy"| Clients
-    CS01 -->|"Password hash and directory synchronization"| Entra
     People --> Entra
-    Entra -. "federated human authentication" .-> Workforce
-    Workforce -. "mapped attributes; GCP IAM authorization" .-> Google
-    GitHub --> GitHubWIF --> TFSA --> Foundation
-    TFSA -. "future network apply" .-> GCPNet
-    HQ -. "HA VPN, routes and DNS forwarding<br/>Proposed" .-> GCPNet
-    GCPNet --> GCPWorkloads
+    CS01 -->|"password hash and directory sync"| Entra
+    CL01 -->|"hybrid join"| Entra
+    CL02 -->|"hybrid join and LAPS backup"| Entra
+    GitHub -->|"repository and environment OIDC claims"| GitHubWIF
+    Entra -. "future human federation" .-> Workforce
+    TFSA -. "future network apply" .-> GCPVPC
+    HQVNet -. "HA VPN, routes and DNS - proposed" .-> GCPVPC
+    Workforce -. "GCP IAM authorization" .-> GCPWorkloads
+    GCPSubnet -.-> GCPWorkloads
+
+    classDef deployed fill:#e8f5e9,stroke:#2e7d32,color:#1b1b1b,stroke-width:2px;
+    classDef prepared fill:#e3f2fd,stroke:#1565c0,color:#1b1b1b,stroke-width:2px;
+    classDef proposed fill:#f5f5f5,stroke:#616161,color:#1b1b1b,stroke-width:2px,stroke-dasharray:5 5;
+    class Entra,Bastion,DC01,CS01,CL01,CL02,GitHubWIF,TFSA,State deployed;
+    class GCPVPC,GCPSubnet prepared;
+    class Workforce,GCPWorkloads proposed;
 ```
 
 ## Identity planes
